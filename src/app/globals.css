@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+/* Brand palette — change these to rebrand the whole site. */
+:root {
+  --background: #f6f4ee;
+  --foreground: #1b2420;
+  --card: #ffffff;
+  --muted: #6b746f;
+  --border: #e2ded3;
+  --brand: #123d2e;
+  --brand-soft: #e3ece6;
+  --accent: #b8913a;
+  --danger: #a3302a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0d1411;
+    --foreground: #e9ece8;
+    --card: #151e1a;
+    --muted: #9aa49e;
+    --border: #26322c;
+    --brand: #2f7a5a;
+    --brand-soft: #1b2b24;
+    --accent: #d4b062;
+    --danger: #e0645c;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Shared form styling */
+.field {
+  @apply block w-full rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground placeholder:text-muted;
+}
+.label {
+  @apply mb-1 block text-sm font-medium;
+}
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50;
+}
+.btn-secondary {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-brand-soft disabled:opacity-50;
+}
+.btn-danger {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-danger/40 bg-card px-3 py-1.5 text-sm font-medium text-danger transition hover:bg-danger/10;
+}
+.card {
+  @apply rounded-2xl border border-border bg-card p-5 shadow-sm;
+}
+.h1 {
+  @apply font-serif text-3xl font-semibold tracking-tight sm:text-4xl;
+}
+.h2 {
+  @apply font-serif text-xl font-semibold tracking-tight;
+}
