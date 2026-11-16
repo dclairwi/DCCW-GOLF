@@ -1,0 +1,86 @@
+name: Database backup
+# Weekly encrypted backup of the database, kept for 90 days as a downloadable
+# workflow artifact. Free. The repo is public, so the file is encrypted with a
+# passphrase only you know (BACKUP_PASSPHRASE) — without it the file is useless.
+# Restore steps: docs/BACKUPS.md
+
+on:
+  schedule:
+    - cron: "41 11 * * 1" # ~3:41am Pacific every Monday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check secrets
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$DB_URL" ] || [ -z "$PASS" ]; then
+            echo "::error::Add SUPABASE_DB_URL and BACKUP_PASSPHRASE repository secrets (docs/SETUP.md, step 5)."
+            exit 1
+          fi
+          if [ "${#PASS}" -lt 16 ]; then
+            echo "::error::BACKUP_PASSPHRASE must be at least 16 characters."
+            exit 1
+          fi
+
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $VERSION_CODENAME-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Dump and encrypt
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          umask 077
+          STAMP=$(date -u +%Y-%m-%d)
+          mkdir -p backup
+          # App tables: structure + data
+          pg_dump "$DB_URL" --schema=public --no-owner -f backup/public.sql   # keeps grants (they are part of the privacy rules)
+          # A fresh Supabase project already has an (empty) public schema; don't try to re-create it.
+          sed -i '/^CREATE SCHEMA public;$/d' backup/public.sql
+          # Exact access rules, re-applied after a restore. A fresh Supabase project grants broad
+          # default access to new tables, so restoring the data alone would loosen privacy.
+          {
+            echo "revoke all on all tables in schema public from anon, authenticated, service_role;"
+            echo "revoke all on all sequences in schema public from anon, authenticated, service_role;"
+            echo "revoke all on all functions in schema public from anon, authenticated, service_role, public;"
+            grep -E '^(GRANT|REVOKE) ' backup/public.sql
+          } > backup/privileges.sql
+          # Login accounts (data only) so members keep their logins after a restore
+          pg_dump "$DB_URL" --data-only --table=auth.users --table=auth.identities -f backup/auth_users.sql
+          tar -czf "dccw-golf-$STAMP.tar.gz" backup
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$PASS" \
+            --symmetric --cipher-algo AES256 -o "dccw-golf-$STAMP.tar.gz.gpg" "dccw-golf-$STAMP.tar.gz"
+          rm -rf backup "dccw-golf-$STAMP.tar.gz"
+          ls -la *.gpg
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+
+      - name: Save encrypted backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: dccw-golf-backup-${{ env.STAMP }}
+          path: dccw-golf-*.tar.gz.gpg
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Keep this schedule from being auto-disabled
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/backup.yml/enable" || true

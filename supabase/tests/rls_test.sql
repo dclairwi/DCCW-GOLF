@@ -54,6 +54,7 @@ select pg_temp.as_user(null);
 select pg_temp.expect_error('select * from public.trips', 'anon cannot read trips');
 select pg_temp.expect_error('select * from public.profiles', 'anon cannot read profiles');
 select pg_temp.expect_error($$select public.get_trip_roster('10000000-0000-0000-0000-000000000001')$$, 'anon cannot read roster');
+select pg_temp.expect_eq((select count(*) from (select public.keepalive()) k), 1, 'anon can call keepalive (no data)');
 rollback;
 
 -- 3. Member privacy & role escalation

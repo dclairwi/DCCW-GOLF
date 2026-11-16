@@ -1,93 +1,128 @@
-# Owner setup guide
+# Owner setup guide (all free)
 
-Do these once, in order. Nothing here needs code. **Never paste secret keys into
-chat, GitHub, or anywhere except the Vercel dashboard and your own `.env.local`.**
+Everything here uses free plans — no credit card needed. Do these once, in order.
+**Never paste secret keys into chat, GitHub files, or anywhere except the Vercel
+dashboard, GitHub "Secrets", and your own `.env.local`.**
 
-Pricing and free-tier limits change, so check each provider's current pricing
-page before relying on a free plan.
+| Service | What it does | Cost |
+|---|---|---|
+| GitHub | Stores the code, runs tests, keep-awake + backup jobs | Free |
+| Supabase | Database and logins | Free plan |
+| Vercel | Runs the website at `your-project.vercel.app` | Free Hobby plan (personal, non-commercial use) |
+| Gmail | Sends invite and password-reset emails | Free |
+
+Free plans can change their rules; if a provider ever asks for payment, stop and ask before upgrading.
 
 ---
 
-## 1. Supabase (database + logins) — required
-
-**Why:** stores members, trips, payments and pairings, and handles sign-in.
+## 1. Supabase (database + logins)
 
 1. Go to <https://supabase.com>, sign up, and create a **New project**.
    - Name: `dccw-golf`. Region: a US West region. Save the database password in a password manager.
-2. **Create the tables.** Open **SQL Editor → New query**, paste the whole contents of
-   `supabase/migrations/20261115000000_core.sql`, and click **Run**. You should see "Success".
+2. **Create the tables.** Open **SQL Editor → New query**. Paste the whole contents of each file in
+   `supabase/migrations/`, oldest first, clicking **Run** after each:
+   1. `20261115000000_core.sql`
+   2. `20261116000000_keepalive.sql`
+
+   Each should say "Success".
 3. **Turn off public sign-ups** (invite-only):
    **Authentication → Sign In / Providers → Email**: keep Email enabled, turn
    **"Allow new users to sign up" OFF**, keep **"Confirm email" ON**.
-4. **Site address:** **Authentication → URL Configuration**
-   - Site URL: your real site address (e.g. `https://dccwgolf.com`), or the Vercel URL until you have a domain.
-   - Redirect URLs: add `https://YOUR-SITE/**` and `http://localhost:3000/**`.
-5. **Email templates** (so links work on any phone/browser): **Authentication → Email Templates**
-   - **Invite user** — replace the link with:
-     `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite&next=/set-password`
-   - **Reset password** — replace the link with:
-     `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/set-password`
-6. **Email sending (important):** Supabase's built-in email is for testing only — it is
-   heavily rate-limited and may only deliver to your own team's addresses. Before inviting
-   the group, set up custom SMTP (step 4 below, Resend) under
-   **Authentication → Emails → SMTP Settings**. Until then, use **"Copy sign-in link"** on the
-   Members page and text links to people.
-7. **Keys:** **Project Settings → API Keys**. You'll need the Project URL, the
+4. **Keys:** **Project Settings → API Keys**. Note the Project URL, the
    **publishable** key, and the **secret** key (keep this one private).
+5. **Database connection string** (for backups): click **Connect** at the top of the project, choose
+   **Session pooler**, and copy the URI. Replace `[YOUR-PASSWORD]` with your database password.
+   (Use the *session pooler* one — GitHub can't reach the "direct" one.)
 
-### Make yourself the admin
-1. **Authentication → Users → Add user → Create new user**: your email + a password, tick "Auto confirm".
-2. **SQL Editor**, run (with your email):
-   ```sql
-   update public.profiles set role = 'admin' where email = 'YOUR-EMAIL';
-   ```
-3. Sign in on the site — you'll see the **Admin** tab.
-
-**Check it worked:** in Table Editor → `profiles`, your row shows `role = admin`.
+You'll finish Supabase's email settings in step 3, once you know your site address.
 
 ---
 
-## 2. Vercel (hosting) — required
+## 2. Vercel (hosting)
 
-**Why:** runs the website and redeploys automatically when code is pushed to GitHub.
-
-1. Sign up at <https://vercel.com> with your GitHub account.
-2. **Add New → Project →** import `dclairwi/DCCW-GOLF`. Framework is detected as Next.js.
-3. Before deploying, add **Environment Variables** (from `.env.example`):
+1. Sign up at <https://vercel.com> **with your GitHub account** and choose the free **Hobby** plan.
+2. **Add New → Project →** import `dclairwi/DCCW-GOLF`. It detects Next.js automatically.
+3. Before deploying, add **Environment Variables**:
    | Name | Value |
    |---|---|
    | `NEXT_PUBLIC_SUPABASE_URL` | Supabase Project URL |
    | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key |
    | `SUPABASE_SECRET_KEY` | Supabase secret key (**server only**) |
-   | `NEXT_PUBLIC_SITE_URL` | `https://your-site` (no trailing slash) |
+   | `NEXT_PUBLIC_SITE_URL` | leave as `https://placeholder.vercel.app` for now |
    | `NEXT_PUBLIC_SITE_NAME` | `DCCW Golf` (or whatever you like) |
-4. Deploy. Then put the final URL into Supabase **Site URL** (step 1.4) and `NEXT_PUBLIC_SITE_URL`, and redeploy.
+4. Click **Deploy**. Vercel gives you a free address like `https://dccw-golf.vercel.app`.
+5. Go to **Settings → Environment Variables**, set `NEXT_PUBLIC_SITE_URL` to that address (no trailing
+   slash), then **Deployments → ⋯ → Redeploy**.
 
-**Check it worked:** visiting the site sends you to the sign-in page; signing in shows the home page.
-
-**Troubleshooting:** "Missing environment variable…" → a variable is missing or misspelled in Vercel; add it and redeploy.
-Links in emails go to localhost → Supabase Site URL is wrong.
-
----
-
-## 3. Domain — optional but recommended
-
-Buy a domain from any registrar, then in Vercel **Project → Settings → Domains** add it and follow
-the DNS instructions. Update the Supabase Site URL and `NEXT_PUBLIC_SITE_URL` afterwards.
-A domain is also needed to send email from your own address (step 4).
+From now on, every change pushed to GitHub redeploys the site automatically.
 
 ---
 
-## 4. Resend (email delivery) — required before inviting the group
+## 3. Email through Gmail (free) + link settings
 
-**Why:** reliable invite and password-reset emails (and, later, trip announcements and poll reminders).
+Supabase's built-in email is for testing only (very limited, may only reach your own address), so
+invites go out through a Gmail account instead.
 
-1. Sign up at <https://resend.com>, **Domains → Add domain**, and add the DNS records it shows at your registrar. Wait until it says Verified.
-2. **API Keys → Create** (sending access).
-3. In Supabase **Authentication → Emails → SMTP Settings**, enable custom SMTP with the host,
-   port, username and password from Resend's SMTP instructions, and a sender like `golf@your-domain`.
+1. **Make a Gmail app password.** In the Gmail account you want emails to come from
+   (a new one like `dccwgolf@gmail.com` works well):
+   - Google Account → **Security** → turn on **2-Step Verification**.
+   - Then search the account settings for **App passwords**, create one named `Supabase`, and copy the 16-character password.
+2. **Supabase → Authentication → Emails → SMTP Settings** → enable custom SMTP:
+   | Field | Value |
+   |---|---|
+   | Sender email | the Gmail address |
+   | Sender name | `DCCW Golf` |
+   | Host | `smtp.gmail.com` |
+   | Port | `465` |
+   | Username | the Gmail address |
+   | Password | the 16-character app password |
+3. **Authentication → URL Configuration**
+   - Site URL: your Vercel address, e.g. `https://dccw-golf.vercel.app`
+   - Redirect URLs: add `https://dccw-golf.vercel.app/**` and `http://localhost:3000/**`
+4. **Authentication → Email Templates** (so links work on any phone/browser):
+   - **Invite user** — make the link:
+     `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite&next=/set-password`
+   - **Reset password** — make the link:
+     `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/set-password`
 
-**Check it worked:** on the Members page, use **Email setup link** on yourself and confirm it arrives.
+**Check it worked:** after step 4 below, use **Email setup link** on yourself in Admin → Members; the email should arrive from your Gmail address.
+
+---
+
+## 4. Make yourself the admin
+
+1. Supabase **Authentication → Users → Add user → Create new user**: your email + a password, tick "Auto confirm".
+2. **SQL Editor**, run (with your email):
+   ```sql
+   update public.profiles set role = 'admin' where email = 'YOUR-EMAIL';
+   ```
+3. Sign in on your site — you'll see the **Admin** tab. Create the Palm Springs trip there.
+
+---
+
+## 5. Keep the site awake + weekly backups (GitHub, free)
+
+Free Supabase projects **pause after about a week with no activity**, which would take the site down
+between trips. Two automatic GitHub jobs prevent that and back up your data:
+
+- **Keep database awake** — pings the database every 3 days.
+- **Database backup** — every Monday, saves an **encrypted** copy of the database (kept 90 days).
+
+Set them up:
+1. Make up a long **backup passphrase** (at least 16 characters) and save it in your password manager.
+   **Without it, backups can't be opened — not even by me.**
+2. On GitHub: repo **Settings → Secrets and variables → Actions → New repository secret**. Add:
+   | Secret | Value |
+   |---|---|
+   | `SUPABASE_URL` | Supabase Project URL |
+   | `SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key |
+   | `SUPABASE_DB_URL` | the Session pooler connection string from step 1.5 |
+   | `BACKUP_PASSPHRASE` | your backup passphrase |
+3. Repo **Actions** tab → **Keep database awake** → **Run workflow**. Then do the same for **Database backup**.
+   Both should get a green check.
+
+If a job ever fails, GitHub emails you. If the site does go down, open Supabase and click **Restore project**.
+How to open a backup: [BACKUPS.md](BACKUPS.md).
 
 ---
 
@@ -95,6 +130,15 @@ A domain is also needed to send email from your own address (step 4).
 
 On **Admin → Members & invites**:
 - **Invited — hasn't joined yet:** they never clicked their invite. Click **Email setup link**.
-- **Email never arrives:** click **Copy sign-in link** and text it to them. It works once and expires in about an hour.
+- **Email never arrives:** check their spam folder, or click **Copy sign-in link** and text it to them. It works once and expires in about an hour.
 - **Forgot password:** they can use "Forgot your password?" on the sign-in page, or you can do either of the above.
 - **Someone shouldn't have access anymore:** **Disable** (nothing is deleted; you can restore it).
+
+## Common setup problems
+- **"Missing environment variable…"** on the site → a Vercel variable is missing or misspelled; fix it and redeploy.
+- **Email links open localhost** → the Supabase Site URL (step 3.3) is wrong.
+- **"Invite failed: Error sending invite email"** → the Gmail SMTP settings or app password are wrong (step 3.2).
+- **Backup job: "connection refused/timed out"** → you used the direct connection string; use the **Session pooler** one.
+
+## Optional later (not free)
+A custom web address (e.g. `dccwgolf.com`) costs a yearly fee from any registrar. Nothing on the site needs it.

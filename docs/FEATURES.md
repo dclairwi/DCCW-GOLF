@@ -24,6 +24,8 @@ project yet — that happens once the owner finishes docs/SETUP.md.
 | Pairings hidden until publish date (default: a week before) | Tested | |
 | Audit log of sign-ups, payments, trip and role changes | Tested | |
 | Profile (name, hometown, handicap, phone private, email opt-in) | Implemented | |
+| Keep free database awake (GitHub job every 3 days) | Implemented | Needs repo secrets (SETUP.md step 5) |
+| Weekly encrypted backups, 90-day retention | Tested | Backup → restore cycle verified locally; access rules identical after restore |
 
 ## Coming next
 

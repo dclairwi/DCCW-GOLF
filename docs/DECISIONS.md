@@ -23,3 +23,17 @@
 - **Sign-in links for troubleshooting** are returned straight to the admin's browser, never put in URLs, so they
   can't land in server logs.
 - **No waitlist** for now: if a trip is full, the member is told to contact the organizer.
+
+## 2026-11-15 — Everything on free plans
+
+- **Owner requirement: no paid services.** Vercel Hobby (free `*.vercel.app` address), Supabase Free,
+  Gmail SMTP for auth emails (no domain needed), GitHub Actions for scheduled jobs. Resend and a custom
+  domain are optional later.
+- **Supabase Free pauses idle projects** (~7 days): a GitHub Action calls a no-data `keepalive()` RPC every 3 days.
+- **Supabase Free has no downloadable backups:** weekly `pg_dump` via GitHub Actions, encrypted (AES-256, owner's
+  passphrase) because the repo is public, stored as a 90-day artifact.
+- **Restores must re-apply privileges:** a fresh Supabase project grants broad default access to new tables, so a
+  data-only restore would loosen privacy. Each backup includes `privileges.sql` that resets access exactly.
+- **Public repos auto-disable schedules after 60 days without commits:** each scheduled job re-enables itself via the API.
+- **Future media page must fit the free storage allowance:** plan is compressed photos and YouTube (unlisted) links
+  for videos. Verify current Supabase Free storage limits before building it.
